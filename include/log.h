@@ -2,7 +2,6 @@
 #define __LOG__
 #include <stdbool.h>
 #include <time.h>
-#include "../include/stack.h"
 
 enum Severity{
     INFO,
