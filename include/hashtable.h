@@ -21,11 +21,11 @@ struct Hashtable{
     unsigned int entries;
     unsigned int capacity;
     bool emptySlot;
-    struct Entry* slots[CAPACITY];
+    struct Entry** slots;
 };
 
 
-struct Hashtable* hashtableCreate(int capacity, enum DataTypes type);
+struct Hashtable* hashtableCreate(unsigned int capacity, enum DataTypes type);
 bool hashtableSet(struct Hashtable* hashtable, char *key, void* value);
 struct Entry* hashtableGet(struct Hashtable* hashtable, char *key);
 void hashtableDump(struct Hashtable* hashtable, void (*printData)(void *data));

@@ -16,17 +16,20 @@ uint64_t hash(char* string){
 }
 
 
-struct Hashtable* hashtableCreate(int capacity, enum DataTypes type){
+
+struct Hashtable* hashtableCreate(unsigned int capacity, enum DataTypes type){
     struct Hashtable* hashtable = (struct Hashtable*)calloc(1, sizeof(struct Hashtable));
-    struct Entry* slots[capacity];
+
+
     if(!hashtable){
         logFn(ERROR, "Unable to allocate heap memory", __FILE__, __LINE__);
         return NULL;
     }
     hashtable->entries = 0;
-    hashtable->capacity = CAPACITY;
+    hashtable->capacity = capacity;
 	hashtable->_type = type;
-    for(int i = 0; i < CAPACITY; i++)
+    hashtable->slots = calloc(capacity, sizeof(struct Entry*));
+    for(int i = 0; i < capacity; i++)
         hashtable->slots[i] = NULL;
     return hashtable;
 }
@@ -77,7 +80,7 @@ void freeEntry(struct Entry* entry, enum DataTypes type,void (*deleteCustom)(voi
 
 bool hashtableSet(struct Hashtable* hashtable, char *key, void* value){
     uint64_t hashedKey = hash(key);
-    int index = (int)(hashedKey & (uint64_t)(CAPACITY - 1));
+    int index = (int)(hashedKey & (uint64_t)(hashtable->capacity - 1));
     struct Entry* newEntry = createEntry(key, value, hashtable->_type);
     if(!newEntry)
         return false;
@@ -96,8 +99,8 @@ bool hashtableSet(struct Hashtable* hashtable, char *key, void* value){
 
 struct Entry* hashtableGet(struct Hashtable* hashtable, char *key){
     uint64_t hashedKey = hash(key);
-    int index = (int)(hashedKey & (uint64_t)(CAPACITY - 1));
-    if(index > CAPACITY - 1){
+    int index = (int)(hashedKey & (uint64_t)(hashtable->capacity - 1));
+    if(index > hashtable->capacity - 1){
         logFn(ERROR, "Index is out of range", __FILE__, __LINE__);
         return NULL;
     }
@@ -113,7 +116,7 @@ struct Entry* hashtableGet(struct Hashtable* hashtable, char *key){
 }
 
 void hashtableDump(struct Hashtable* hashtable, void (*printCustomData)(void *data)){
-    for(int i = 0; i < CAPACITY; i++){
+    for(int i = 0; i < hashtable->capacity; i++){
         struct Entry* head = hashtable->slots[i];
         while(head){
             printf("%s:\n\t", head->key);
@@ -132,7 +135,7 @@ void hashtableDump(struct Hashtable* hashtable, void (*printCustomData)(void *da
 //Need to be worked on
 void hastableRemove(struct Hashtable* hashtable, char* key, void (*deleteCustom)(void* data)){
     int index = hash(key);
-    if(index > CAPACITY - 1)
+    if(index > hashtable->capacity - 1)
         logFn(ERROR, "Index is out of range", __FILE__, __LINE__);
 
     struct Entry* currentEntry  = hashtable->slots[index];
@@ -174,10 +177,11 @@ void purgeSlot(struct Entry* head, enum DataTypes type, void (*deleteCustom)(voi
 }
 
 void hashtableDelete(struct Hashtable* hashtable, void (*deleteCustom)(void* data)){
-    for(int i = 0; i < CAPACITY; i++){
+    for(int i = 0; i < hashtable->capacity; i++){
         purgeSlot(hashtable->slots[i], hashtable->_type, deleteCustom);	
         //hashtable->slots[i] = NULL;
     }
+    free(hashtable->slots);
     free(hashtable);
     return;
 }
