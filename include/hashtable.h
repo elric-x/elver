@@ -2,20 +2,12 @@
 #define __HASH_TABLE__
 #include <stdbool.h>
 #include <stdlib.h>
+#include "./customType.h"
 
 #define CAPACITY 10 
 #define FNV_OFFSET 14695981039346656037UL
 #define FNV_PRIME 1099511628211UL
 
-union Data{
-    void* Custom;
-    char* String;
-};
-
-enum DataTypes{
-    Custom,
-    String,
-};
 
 struct Entry{
     char* key;
