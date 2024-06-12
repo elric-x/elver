@@ -67,12 +67,10 @@ struct Entry* createEntry(char* key, void* value, enum DataTypes type){
 
 void freeEntry(struct Entry* entry, enum DataTypes type,void (*deleteCustom)(void* value)){
     free(entry->key);
-    if(type == Custom){
+    if(type == Custom)
         deleteCustom(entry->value.Custom);
-        free(entry);
-        return;
-    }	
-    free(entry->value.String);
+    else
+        free(entry->value.String);
     free(entry);
     return;
 }
