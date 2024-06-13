@@ -4,8 +4,8 @@
 void logFn(enum Severity severity, char *message, char *filepath, int line) {
     time_t timestamp = time(NULL);
     char *logLevelMsg[3] = {"INFO", "WARNING", "ERROR"};
-    if (severity == ERROR)
-        fprintf(stderr, "%s\n\t[%s]: %s\n", asctime(localtime(&timestamp)), logLevelMsg[severity], message);
+    if (severity == ERROR || severity == CRITICAL)
+        fprintf(stderr, "%s\n[%s]\n%s:%d \t%s\n", asctime(localtime(&timestamp)), logLevelMsg[severity], filepath, line, message);
     else
-        fprintf(stdout, "%s\n\t[%s]: %s\n", asctime(localtime(&timestamp)), logLevelMsg[severity], message);
+        fprintf(stdout, "%s\n[%s]\n%s:%d \t%s\n", asctime(localtime(&timestamp)), logLevelMsg[severity], filepath, line, message);
 }
