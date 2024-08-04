@@ -1,82 +1,154 @@
 #include "../include/httpRouter.h"
 #include <stdlib.h>
 #include <string.h>
-#include "../include/log.h"
-#include "../include/log.h"
+#include <unistd.h>
+#include <stdio.h>
+#include "../include/error.h"
 #include "../include/utils.h"
 
-struct HttpRoute* createRoute(enum HttpMethod method, char *uri, void (*middleware)(struct HttpRequest *request, struct HttpResponse *response)) {
+struct HttpRoute* createRoute(HttpMethod method, const char *uri, void (*middleware)(HttpRequest *request, HttpResponse *response)) {
+    if(!middleware || strlen(uri) == 0){
+        logFn(WARNING, "middleware | uri undefined", __FILE__, __LINE__);
+        return NULL;
+    }
     struct HttpRoute *newRoute = (struct HttpRoute *)calloc(1, sizeof(struct HttpRoute));
     if (!newRoute) {
         logFn(ERROR, "Unable to allocate heap memory", __FILE__, __LINE__);
-        exit(EXIT_FAILURE);
+        return NULL;
     }
+    //check if the method given by the user is correct -> HttpMethod
     newRoute->method = method;
+
+    if(!middleware){
+        logFn(ERROR, "Middleware should be defined", __FILE__, __LINE__);
+        return NULL;
+    }
     newRoute->middleware = middleware;
-    copyString(&newRoute->uri, uri);
+    newRoute->uri = strndup(uri, strlen(uri));
+    if(!newRoute->uri){
+        logFn(ERROR, "Unable to create new route", __FILE__, __LINE__);
+        free(newRoute);
+        return NULL;
+    }
     return newRoute;
 }
 
 void deleteRoute(struct HttpRoute* route){
-    free(route->uri);
-    free(route);
+    if(route){
+        free(route->uri);
+        free(route);
+    }else{
+        logFn(WARNING, "Unable to create new route", __FILE__, __LINE__);
+    }
     return;
 }
 
-// Router get method
-struct HttpRouter* get(struct HttpRouter *router, char *uri, void (*middleware)(struct HttpRequest *request,struct HttpResponse *response)) {
+// Router API route setup function
+struct HttpRouter* get(struct HttpRouter *router, const char *uri, void (*middleware)(struct HttpRequest *request,struct HttpResponse *response)) {
     struct HttpRoute *newRoute = createRoute(GET, uri, middleware);
+    if(!newRoute)
+        logFn(ERROR, "Unable to register new route", __FILE__, __LINE__);
     char key[255] = "get_";
     strcat(key, uri);
-    hashtableSet(router->routes, key, newRoute);
+    if(!hashtableSet(router->routes, key, newRoute))
+        logFn(ERROR, "Unable to register new route", __FILE__, __LINE__);
+
     return router;
 }
 
 // Router post method
-struct HttpRouter* post(struct HttpRouter *router, char *uri, void (*middleware)(struct HttpRequest *request, struct HttpResponse *response)) {
+struct HttpRouter* post(struct HttpRouter *router, const char *uri, void (*middleware)(struct HttpRequest *request, struct HttpResponse *response)) {
     struct HttpRoute *newRoute = createRoute(POST, uri, middleware);
+    if(!newRoute)
+        logFn(ERROR, "Unable to register new route", __FILE__, __LINE__);
+
     char key[255] = "post_";
     strcat(key, uri);
-    hashtableSet(router->routes, key, newRoute);
+    if(!hashtableSet(router->routes, key, newRoute))
+        logFn(ERROR, "Unable to register new route", __FILE__, __LINE__);
     return router;
 }
 
 // Router update method
-struct HttpRouter* update(struct HttpRouter *router, char *uri, void (*middleware)(struct HttpRequest *request, struct HttpResponse *response)) {
+struct HttpRouter* update(struct HttpRouter *router, const char *uri, void (*middleware)(struct HttpRequest *request, struct HttpResponse *response)) {
     struct HttpRoute *newRoute = createRoute(UPDATE, uri, middleware);
+    if(!newRoute)
+        logFn(ERROR, "Unable to register new route", __FILE__, __LINE__);
+
     char key[255] = "update_";
     strcat(key, uri);
-    hashtableSet(router->routes, key, newRoute);
+    if(!hashtableSet(router->routes, key, newRoute))
+        logFn(ERROR, "Unable to register new route", __FILE__, __LINE__);
     return router;
 }
 
 // Router delete method
-struct HttpRouter* delete(struct HttpRouter *router, char *uri, void (*middleware)(struct HttpRequest *request, struct HttpResponse *response)) {
-    struct HttpRoute *new_route = createRoute(DELETE, uri, middleware);
+struct HttpRouter* delete(struct HttpRouter *router, const char *uri, void (*middleware)(struct HttpRequest *request, struct HttpResponse *response)) {
+    struct HttpRoute *newRoute = createRoute(DELETE, uri, middleware);
+    if(!newRoute)
+        logFn(ERROR, "Unable to register new route", __FILE__, __LINE__);
+
     char key[255];
     strcat(key, "delete_");
     strcat(key, uri);
-    hashtableSet(router->routes, key, new_route);
+    if(!hashtableSet(router->routes, key, newRoute))
+        logFn(ERROR, "Unable to register new route", __FILE__, __LINE__);
     return router;
 }
-// End router methods
 
-// Router creation function
-struct HttpRouter* createRouter(void) {
-    struct HttpRouter* newRouter = (struct HttpRouter*)calloc(1, sizeof(struct HttpRouter));
-    if(!newRouter){
-        logFn(ERROR, "Unable to allocate heap memory", __FILE__, __LINE__);
-        exit(EXIT_FAILURE);
+// Router method for static routes
+struct HttpRouter* statik(struct HttpRouter* router, const char* staticFilesRootPath, void (*staticMiddleware)(struct HttpRequest *request, struct HttpResponse *response)){
+    if(router->staticRootPath){
+        logFn(ERROR, "A static folder has already been defined", __FILE__, __LINE__);
+    }else{
+        router->staticRootPath = strndup(staticFilesRootPath, strlen(staticFilesRootPath));
+        if(!router->staticRootPath){
+            logFn(ERROR, "Unable to register static route path", __FILE__, __LINE__);
+        }else{
+            struct HttpRoute* staticRoute = createRoute(STATIC, staticFilesRootPath, staticMiddleware);
+            if(!staticRoute){
+                logFn(ERROR, "Unable to register static route", __FILE__, __LINE__);
+                free(router->staticRootPath);
+            }else{
+                if(!hashtableSet(router->routes, "static", staticRoute))
+                    logFn(ERROR, "Unable to register new route", __FILE__, __LINE__);
+            }
+        }
     }
-    newRouter->routes = hashtableCreate(MAX_ROUTES * 2, Custom);
-    newRouter->get = get;
-    newRouter->post = post;
-    newRouter->update = update;
-    newRouter->delete = delete;
-    return newRouter;
+    return router;
 }
 
-struct HttpRoute *selectRoute(struct HttpRouter *router, struct HttpRequest* request) {
+//Compute a file path from the request baseUri and the staticRootPath to check 
+//if such ressource exits
+//WARNING: Return false if it was not able to allocate space for the comparison
+bool isRessource(char* staticRootPath, char* baseName){
+    //compute the file path if it has to be in the static define folder
+    char* computedFilePath = (char*)calloc(strlen(staticRootPath) + strlen(baseName) + 1, sizeof(char));
+    if(!computedFilePath){
+        logFn(ERROR, "Unable to allocate heap memory", __FILE__, __LINE__);
+        return false;
+    }
+    strcat(computedFilePath, staticRootPath);
+    strcat(computedFilePath, baseName);
+    //
+    //check if such file exits
+    bool fileExists = access(computedFilePath, F_OK) != 0;
+    free(computedFilePath);
+    return fileExists;
+}
+
+struct HttpRoute* findRoute(struct HttpRouter *router, struct HttpRequest* request) {
+    if(!request || !request->baseUri|| strlen(request->baseUri) == 0|| !router){
+        if(!request)
+            printf("request");
+        if(!request->method)
+            printf("method");
+        if(!router)
+            printf("router");
+        logFn(ERROR, "Invalid parameters", __FILE__, __LINE__);
+        return NULL;
+    }
+
     char key[255] = {};
     char method_prefix[8] = {};
     switch(request->method){
@@ -89,21 +161,53 @@ struct HttpRoute *selectRoute(struct HttpRouter *router, struct HttpRequest* req
         case UPDATE:
             strcpy(method_prefix, "update_");
         break;
+        case PUT:
+            strcpy(method_prefix, "put_");
+        break;
+        case PATCH:
+            strcpy(method_prefix, "patch_");
+        break;
         case DELETE:
             strcpy(method_prefix, "delete_");
+        break;
+        default:
         break;
     }
     strcat(key, method_prefix);
     strcat(key, request->baseUri);
     struct Entry *foundEntry = hashtableGet(router->routes, key);
-    if (!foundEntry) {
-        logFn(WARNING, "URI not defined", __FILE__, __LINE__);
-        // Select not found error page
-        return NULL;
+    if(!foundEntry){
+        if(request->method == GET && router->staticRootPath  && isRessource(request->baseUri, router->staticRootPath))
+            foundEntry = (struct Entry*) hashtableGet(router->routes, "static");
+        else
+            return NULL;
     }
-    struct HttpRoute *FoundRoute = (struct HttpRoute *)foundEntry->value.Custom;
+    struct HttpRoute *FoundRoute = (struct HttpRoute *)foundEntry->value;
     return FoundRoute;
 }
+
+// Router creation function
+struct HttpRouter* createRouter(void) {
+    struct HttpRouter* newRouter = (struct HttpRouter*)calloc(1, sizeof(struct HttpRouter));
+    if(!newRouter){
+        logFn(ERROR, "Unable to allocate heap memory", __FILE__, __LINE__);
+        return NULL;
+    }
+    newRouter->routes = hashtableCreate(MAX_ROUTES * 2);
+    if(!newRouter->routes){
+        logFn(ERROR, "Unable to initialize routes", __FILE__, __LINE__);
+        return NULL;
+    }
+    newRouter->staticRootPath = NULL;
+    newRouter->get = get;
+    newRouter->post = post;
+    newRouter->update = update;
+    newRouter->delete = delete;
+    newRouter->statik = statik;
+    newRouter->findRoute = findRoute;
+    return newRouter;
+}
+
 
 void deleteRouteImpl(void *item){
     struct HttpRoute* route = (struct HttpRoute*)item;
@@ -113,6 +217,8 @@ void deleteRouteImpl(void *item){
 
 void deleteRouter(struct HttpRouter* router) {
     hashtableDelete(router->routes, deleteRouteImpl);
+    if(router->staticRootPath)
+        free(router->staticRootPath);
     free(router);
     return;
 }

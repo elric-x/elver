@@ -1,11 +1,12 @@
 #ifndef __HTTP_RESPONSE__
 #define __HTTP_RESPONSE__
 
-#include "./queue.h"
+#include "./ds.h"
+#include "httpVersion.h"
 
 typedef struct HttpResponse {
   int status_code;
-  float version;
+  struct HttpVersion version;
   struct Queue *headers;
   char *body;
 } HttpResponse;

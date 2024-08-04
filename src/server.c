@@ -1,5 +1,5 @@
 #include "../include/server.h"
-#include "../include/log.h"
+#include "../include/error.h"
 #include <stdlib.h>
 
 Server create_server(int domain, int type, int port, int address) {

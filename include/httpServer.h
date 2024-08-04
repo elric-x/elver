@@ -2,14 +2,14 @@
 #define __HTTP_SERVER__
 
 #include "./httpRouter.h"
-#include "./queue.h"
+#include "./ds.h"
 #include "./server.h"
 
 
 typedef struct HttpServer {
   struct Server server;
   struct HttpRouter* router;
-  char* template_base_dir;
+  char* staticDir;
 } HttpServer;
 
 struct HttpServer createHttpServer(int port, char *address);

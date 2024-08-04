@@ -6,6 +6,6 @@ typedef struct HttpHeader{
     char* value;
 }HttpHeader;
 
-void freeHeader(void* item);
-
+struct HttpHeader* createHeader(char* name, char* value);
+void deleteHeader(struct HttpHeader* header);
 #endif
