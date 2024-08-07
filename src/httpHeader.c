@@ -2,6 +2,7 @@
 #include "../include/error.h"
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 struct HttpHeader* createHeader(char* name, char* value){
     struct HttpHeader* newHeader = calloc(1, sizeof(struct HttpHeader));
@@ -24,6 +25,12 @@ struct HttpHeader* createHeader(char* name, char* value){
         return NULL;
     }
     return newHeader;
+}
+
+void printHeader(void *data){
+    HttpHeader *header = (HttpHeader *)data;
+    printf("%s: %s\n", header->name, header->value);
+    return;
 }
 
 

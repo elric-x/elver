@@ -12,11 +12,71 @@
 
 #define BUFFER_SIZE (8 * KILO)
 
-
-void pushGeneralHeaders(Queue *headers){
-    (void)headers;
-    return;
+bool setHeaderContentType(Queue *headers, MimeType type){
+    HttpHeader *header = NULL;
+    switch(type){
+        case PLAIN:
+            header = createHeader("Content-Type", "text/plain");
+        break;
+        case HTML:
+            header = createHeader("Content-Type", "text/html");
+        break;
+        case CSS:
+            header = createHeader("Content-Type", "text/css");
+        break;
+        case JAVASCRIPT:
+            header = createHeader("Content-Type", "text/javascript");
+        break;
+        case PNG:
+            header = createHeader("Content-Type", "image/png");
+        break;
+        case JPEG:
+            header = createHeader("Content-Type", "image/jpeg");
+        break;
+        case WEBP:
+            header = createHeader("Content-Type", "image/webp");
+        break;
+        case JSON:
+            header = createHeader("Content-Type", "application/json");
+        break;
+        case CSV:
+            header = createHeader("Content-Type", "image/csv");
+        break;
+    }
+    if(!header){
+        fprintf(stderr, "Could not create HTTP header\n");
+        return false;
+    }
+    pushQueue(headers, header);
+    return true;
 }
+
+bool setGeneralHeaders(Queue *headers){
+     // Buffer to hold the formatted date
+    char buffer[80];
+    // Get the current time
+    time_t rawtime;
+    struct tm * timeinfo;
+    time(&rawtime);
+    timeinfo = localtime(&rawtime);
+    strftime(buffer, sizeof(buffer), "%A, %d-%b-%y %H:%M:%S %Z", timeinfo);
+
+    HttpHeader *header = createHeader("Server", "Elver");
+    if(!header){
+        fprintf(stderr, "Could not create HTTP header\n");
+        return false;
+    }
+    pushQueue(headers, header);
+
+    header = createHeader("Date", buffer);
+    if(!header){
+        fprintf(stderr, "Could not create HTTP header\n");
+        return false;
+    }
+    pushQueue(headers, header);
+    return true;
+}
+
 char* getStatusMessage(int status_code){
     char* message = NULL;
     switch(status_code){

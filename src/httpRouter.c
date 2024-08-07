@@ -97,7 +97,18 @@ struct HttpRouter* delete(struct HttpRouter *router, const char *uri, void (*mid
 }
 
 // Router method for static routes
-struct HttpRouter* statik(struct HttpRouter* router, const char* staticFilesRootPath, void (*staticMiddleware)(struct HttpRequest *request, struct HttpResponse *response)){
+struct HttpRouter* statik(struct HttpRouter* router, const char* staticFilesRootPath){
+    if(router->staticRootPath){
+        logFn(ERROR, "A static folder has already been defined", __FILE__, __LINE__);
+    }else{
+        router->staticRootPath = strndup(staticFilesRootPath, strlen(staticFilesRootPath));
+        if(!router->staticRootPath)
+            logFn(ERROR, "Unable to register static route path", __FILE__, __LINE__);
+    }
+    return router;
+}
+
+/* struct HttpRouter* statik(struct HttpRouter* router, const char* staticFilesRootPath, void (*staticMiddleware)(struct HttpRequest *request, struct HttpResponse *response)){
     if(router->staticRootPath){
         logFn(ERROR, "A static folder has already been defined", __FILE__, __LINE__);
     }else{
@@ -116,8 +127,7 @@ struct HttpRouter* statik(struct HttpRouter* router, const char* staticFilesRoot
         }
     }
     return router;
-}
-
+} */
 //Compute a file path from the request baseUri and the staticRootPath to check 
 //if such ressource exits
 //WARNING: Return false if it was not able to allocate space for the comparison
@@ -177,9 +187,10 @@ struct HttpRoute* findRoute(struct HttpRouter *router, struct HttpRequest* reque
     strcat(key, request->baseUri);
     struct Entry *foundEntry = hashtableGet(router->routes, key);
     if(!foundEntry){
+        /* printf("Blablablah\n");
         if(request->method == GET && router->staticRootPath  && isRessource(request->baseUri, router->staticRootPath))
             foundEntry = (struct Entry*) hashtableGet(router->routes, "static");
-        else
+        else */
             return NULL;
     }
     struct HttpRoute *FoundRoute = (struct HttpRoute *)foundEntry->value;

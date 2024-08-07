@@ -21,7 +21,7 @@ struct HttpRouter {
     struct HttpRouter* (*post)(struct HttpRouter *router, const char *uri, void (*middleware)(struct HttpRequest *request, struct HttpResponse *response));
     struct HttpRouter* (*update)(struct HttpRouter *router, const char *uri, void (*middleware)(struct HttpRequest *request, struct HttpResponse *response));
     struct HttpRouter* (*delete)(struct HttpRouter *router, const char *uri, void (*middleware)(struct HttpRequest *request, struct HttpResponse *response));
-    struct HttpRouter* (*statik)(struct HttpRouter *router, const char *staticFilesRootPath, void (*middleware)(struct HttpRequest *request, struct HttpResponse *response));
+    struct HttpRouter* (*statik)(struct HttpRouter *router, const char *staticFilesRootPath);
     struct HttpRoute* (*findRoute)(struct HttpRouter *router, struct HttpRequest* request);
 };
 

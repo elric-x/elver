@@ -27,6 +27,7 @@ void aboutMiddleware(struct HttpRequest *request, struct HttpResponse *response)
 
 void contactMiddleware(struct HttpRequest *request, struct HttpResponse *response) {
     (void)request;
+    printf("Contact route\n");
     char *file_path = "/home/dragonix/Dragonix/Sandbox/c/socket/www/contact.html";
     response->body = readFile(file_path);
     if (response->body)
@@ -51,8 +52,8 @@ int main(int argc, char **argv) {
     httpServer.router
         ->get(httpServer.router, "/", homeMiddleware)
         ->get(httpServer.router, "/about", aboutMiddleware)
-        ->get(httpServer.router, "/contact", contactMiddleware);
-        //->statik(httpServer.router, "www");
+        ->get(httpServer.router, "/contact", contactMiddleware)
+        ->statik(httpServer.router, "www");
     // Start server
     launchServer(&httpServer);
     return 0;

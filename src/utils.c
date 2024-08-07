@@ -15,13 +15,13 @@ char* readFile(char *file_path){
     FILE* filePtr = fopen(file_path, "r");
 
     if(!filePtr){
-        fprintf(stderr, "Could not open the file: %s\n", strerror(errno));
+        fprintf(stderr, "Could not open the file 0: %s\n", strerror(errno));
         return NULL;
     }
     size_t readCount = fread(fileBuffer, sizeof(char), BUFFER_SIZE, filePtr);
     if(readCount == 0){
         fclose(filePtr);
-        fprintf(stderr, "Could not open the file: %s\n", strerror(errno));
+        fprintf(stderr, "Could not open the file 1: %s\n", strerror(errno));
         return NULL;
     }
     fclose(filePtr);

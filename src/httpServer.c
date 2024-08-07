@@ -45,17 +45,24 @@ void staticMiddleware(struct HttpResponse *response, char* staticFilePath) {
         exit(EXIT_FAILURE);
     }
     fileExtension += 1;
-    struct HttpHeader* contentTypeHeader  = NULL;
     response->body = readFile(staticFilePath);
 
     if(strcmp(fileExtension, "html") == 0)
-        contentTypeHeader = createHeader("Content-Type", "text/html");
+        setHeaderContentType(response->headers, HTML);
     else if(strcmp(fileExtension, "css") == 0)
-        contentTypeHeader = createHeader("Content-Type", "text/css");
+        setHeaderContentType(response->headers, CSS);
     else if(strcmp(fileExtension, "js") == 0)
-        contentTypeHeader = createHeader("Content-Type", "application/js");
-
-    pushQueue(response->headers, contentTypeHeader);
+        setHeaderContentType(response->headers, JAVASCRIPT);
+    else if(strcmp(fileExtension, "png") == 0)
+        setHeaderContentType(response->headers, PNG);
+    else if(strcmp(fileExtension, "jpeg") == 0)
+        setHeaderContentType(response->headers, JPEG);
+    else if(strcmp(fileExtension, "webp") == 0)
+        setHeaderContentType(response->headers, WEBP);
+    else if(strcmp(fileExtension, "json") == 0)
+        setHeaderContentType(response->headers, JSON);
+    else if(strcmp(fileExtension, "csv") == 0)
+        setHeaderContentType(response->headers, CSV);
     response->body = readFile(staticFilePath);
     if (response->body)
         response->status_code = 200;
@@ -78,12 +85,10 @@ char *resquestHandler(struct HttpRequest *request, struct HttpResponse *response
     if (!matchedRoute) {
         //if the the requested routes is not defined and it is a get method there is a statik method is used defined
         if(request->method == GET && router->staticRootPath){
-            printf("hello\n");
             //compute the requested ressource path
-            char* filePath = (char*)calloc(strlen(router->staticRootPath) + strlen(request->baseUri) + 1, sizeof(char));
+            char filePath[256] = {};
             strcat(filePath, router->staticRootPath);
             strcat(filePath, request->baseUri);
-
             //check if such file exits
             if(access(filePath, F_OK) != 0){
                 logFn(INFO, "Route not found", __FILE__, __LINE__);
@@ -102,6 +107,8 @@ char *resquestHandler(struct HttpRequest *request, struct HttpResponse *response
             }else{
                 response->version = request->version;
                 staticMiddleware(response, filePath);
+                setGeneralHeaders(response->headers);
+                dumpQueue(response->headers, printHeader);
                 parsedResponse = parseResponse(response);
             }
         }else{
@@ -119,8 +126,8 @@ char *resquestHandler(struct HttpRequest *request, struct HttpResponse *response
             return NULL;
         }
         response->version = request->version;
+        setGeneralHeaders(response->headers);
         matchedRoute->middleware(request, response);
-
         parsedResponse = parseResponse(response);
     }
     //free allocated response and request

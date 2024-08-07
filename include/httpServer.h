@@ -14,5 +14,6 @@ typedef struct HttpServer {
 
 struct HttpServer createHttpServer(int port, char *address);
 void launchServer(struct HttpServer *http_server);
+void staticMiddleware(struct HttpResponse *response, char* staticFilePath);
 
 #endif

@@ -7,5 +7,6 @@ typedef struct HttpHeader{
 }HttpHeader;
 
 struct HttpHeader* createHeader(char* name, char* value);
+void printHeader(void *data);
 void deleteHeader(struct HttpHeader* header);
 #endif

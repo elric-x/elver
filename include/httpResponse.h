@@ -11,6 +11,20 @@ typedef struct HttpResponse {
   char *body;
 } HttpResponse;
 
+typedef enum{
+    PLAIN,
+    HTML,
+    CSS,
+    JAVASCRIPT,
+    PNG,
+    JPEG,
+    WEBP,
+    CSV,
+    JSON,
+}MimeType;
+
+bool setGeneralHeaders(Queue *headers);
+bool setHeaderContentType(Queue *headers, MimeType type);
 struct HttpResponse* createResponse(void);
 char* parseResponse(struct HttpResponse* response);
 void freeResponse(struct HttpResponse* response);
