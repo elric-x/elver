@@ -7,10 +7,10 @@ typedef struct Server{
     int domain;
     int type;
     int port;
-    int ip;
+    char address[15];
     int socketfd;
     struct sockaddr_in addr;
 }Server;
 
-Server create_server(int domain, int type, int port, int address);
+Server create_server(int domain, int type, char* address, int port);
 #endif

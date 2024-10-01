@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <time.h>
 
 #define KILO 1024
 #define MEGA (1024 * KILO)
@@ -24,10 +25,13 @@ void deleteHeaderWrapper(void* item){
     return;
 }
 
-struct HttpServer createHttpServer(int port, char *address) {
-    (void)address;
+struct HttpServer createHttpServer(char *address, int port) {
     struct HttpServer httpServer = {};
-    httpServer.server = create_server(AF_INET, SOCK_STREAM, port, INADDR_LOOPBACK);
+    if(address == NULL)
+        httpServer.server = create_server(AF_INET, SOCK_STREAM, HTTP_SERVER_DEFAULT_ADDRESS, port);
+    else
+        httpServer.server = create_server(AF_INET, SOCK_STREAM, address, port);
+
     httpServer.router = createRouter();
     httpServer.staticDir = strndup(static_dir, strlen(static_dir));
     if(!httpServer.staticDir){
@@ -76,6 +80,7 @@ void staticMiddleware(struct HttpResponse *response, char* staticFilePath) {
 char *resquestHandler(struct HttpRequest *request, struct HttpResponse *response, struct HttpRouter *router) {
     struct HttpRoute *matchedRoute = router->findRoute(router, request);
     char *parsedResponse = NULL;
+
     response->headers = createQueue();
     if (!response->headers) {
         logFn(ERROR, "Unable to create response headers", __FILE__, __LINE__);
@@ -89,11 +94,13 @@ char *resquestHandler(struct HttpRequest *request, struct HttpResponse *response
             char filePath[256] = {};
             strcat(filePath, router->staticRootPath);
             strcat(filePath, request->baseUri);
+            
             //check if such file exits
             if(access(filePath, F_OK) != 0){
                 logFn(INFO, "Route not found", __FILE__, __LINE__);
                 response->version = request->version;
                 response->status_code = 404;
+
                 //TODO: call push general header and add content-type
                 char *notFoundMsg ="HTTP/1.0 404 NOT FOUND\r\n"
                     "Server: webserver-c\r\n"
@@ -108,7 +115,7 @@ char *resquestHandler(struct HttpRequest *request, struct HttpResponse *response
                 response->version = request->version;
                 staticMiddleware(response, filePath);
                 setGeneralHeaders(response->headers);
-                dumpQueue(response->headers, printHeader);
+                //dumpQueue(response->headers, printHeader);
                 parsedResponse = parseResponse(response);
             }
         }else{
@@ -134,9 +141,9 @@ char *resquestHandler(struct HttpRequest *request, struct HttpResponse *response
     deleteQueue(response->headers, deleteHeaderWrapper);
     hashtableDelete(request->headers, deleteHeaderWrapper);
 
-    if(request->baseUri)
-        free(request->body);
-    if(response->body)
+    if(request->baseUri != NULL)
+        free(request->baseUri);
+    if(response->body != NULL)
         free(response->body);
 
     return parsedResponse;
@@ -155,10 +162,11 @@ void launchServer(struct HttpServer *httpServer){
     }
     struct sockaddr_in client_addr;
     socklen_t client_addr_len = 0;
-    struct HttpRequest request = {.headers = NULL};
-    struct HttpResponse response = {.body = NULL};
 
     while (true) {
+        struct HttpRequest request = { .headers = NULL };
+        struct HttpResponse response = { .body = NULL };
+
         int clientfd = accept(httpServer->server.socketfd, (struct sockaddr *)&client_addr, &client_addr_len);
         if (clientfd == -1) {
             fprintf(stderr, "Could not accept client request: %s", strerror(errno));

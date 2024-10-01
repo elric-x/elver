@@ -24,15 +24,13 @@ int selectHttpMethod(String methodStr) {
         method = GET;
     else if (memcmp(methodStr.data, "POST", methodStr.len) == 0)
         method = POST;
-    else if (memcmp(methodStr.data, "UPDATE", methodStr.len) == 0)
-        method = UPDATE;
     else if (memcmp(methodStr.data, "DELETE", methodStr.len) == 0)
         method = DELETE;
     else if (memcmp(methodStr.data, "PUT", methodStr.len) == 0)
         method = PUT;
     else if (memcmp(methodStr.data, "PATCH", methodStr.len) == 0)
         method = PATCH;
-    else 
+    else
         logFn(ERROR, "Unknown method", NULL, 0);
     return method;
 }
@@ -53,27 +51,47 @@ bool headersParser(String *requestStr, struct HttpRequest* request) {
         logFn(ERROR, "Unable to create headers", __FILE__, __LINE__);
         return false;
     }
+    //printf("%*s", (int)requestStr->len, (char*)requestStr->data);
+    printf("Headers:\n");
     do {
         String headerLine = trim_end(chop_line(requestStr));
         String fieldStr = chop_token(&headerLine, ':');
+        headerLine = trim_start(headerLine);
+        struct HttpHeader *newHeader = calloc(1, sizeof(struct HttpHeader));
+        if(!newHeader){
+            logFn(ERROR, "Unable to create request header", __FILE__, __LINE__);
+            return false;
+        }
 
-        printf("\tfield: %.*s| value: %*.s\n", (int)fieldStr.len, fieldStr.data, (int)headerLine.len, headerLine.data);
-        char *field = strndup(fieldStr.data, fieldStr.len);
-        if(!field)
+        newHeader->name = strndup(fieldStr.data, fieldStr.len);
+        if(!newHeader->name){
+            logFn(ERROR, "Unable to allocate memory for header name", __FILE__, __LINE__);
+            free(newHeader);
             return false;
-        char *value = strndup(headerLine.data, headerLine.len);
-        if(!value)
+        }
+
+        char name[fieldStr.len];
+        if(!strcpy(name, newHeader->name)){
+            logFn(ERROR, "Unable to copy header name", __FILE__, __LINE__);
+            free(newHeader->name);
+            free(newHeader);
             return false;
-        if(!hashtableSet(request->headers, field, value)){
+        }
+        newHeader->value = strndup(headerLine.data, headerLine.len);
+        if(!newHeader->value){
+            logFn(ERROR, "Unable to allocate memory for header value", __FILE__, __LINE__);
+            free(newHeader->name);
+            free(newHeader);
+            return false;
+        }
+        if(!hashtableSet(request->headers, name, newHeader)){
             logFn(ERROR, "Unable to append headers", __FILE__, __LINE__);
             hashtableDelete(request->headers, NULL);
             return false;
         }
-        free(field);
-    } while (*requestStr->data != '\n');
+    } while ((char)requestStr->data[0] != '\r');
     return true;
 }
-
 
 bool uriParser(String uri, HttpRequest *request) {
     // check for the ? in the URI -> parameters in the url
@@ -82,7 +100,7 @@ bool uriParser(String uri, HttpRequest *request) {
         return request->baseUri ? true : false;
     }
 
-   //extract the base uri 
+   //extract the base uri
     String baseUri = chop_token(&uri, '?');
     request->baseUri = strndup(baseUri.data, baseUri.len);
     // extract the params in the uri
@@ -94,20 +112,26 @@ bool uriParser(String uri, HttpRequest *request) {
     }
     do {
         String param = chop_token(&uri, '&');
-        printf("param: %.*s\n", (int)param.len, param.data);
+        //printf("param: %.*s\n", (int)param.len, param.data);
         String fieldStr = chop_token(&param, '=');
         char *field = strndup(fieldStr.data, fieldStr.len);
-        if(!field)
+        if(!field){
+            logFn(ERROR, "Unable to create param name", __FILE__, __LINE__);
+            hashtableDelete(request->params, deleteHttpHeaderWrapper);
             return false;
+        }
         char *value = strndup(param.data, param.len);
-        if(!value)
+        if(!value){
+            logFn(ERROR, "Unable to create param value", __FILE__, __LINE__);
+            hashtableDelete(request->params, deleteHttpHeaderWrapper);
             return false;
+        }
         if(!hashtableSet(request->params, field, value)){
             logFn(ERROR, "Unable to create param", __FILE__, __LINE__);
             hashtableDelete(request->params, deleteHttpHeaderWrapper);
             return false;
-        } 
-        free(field);
+        }
+        //free(field);
     } while (uri.len > 0);
     return true;
 }
@@ -123,20 +147,67 @@ void versionParser(String versionStr, HttpRequest *request){
     return;
 }
 
-// destructive action on rawRequest
+void bodyParser(String rawBody, HttpRequest *request){
+    struct Entry *entry = hashtableGet(request->headers, "Content-Type");
+    if(!entry){
+        request->body = NULL;
+        return;
+    }
+    //char *bodyContenType = (char*) ((struct HttpHeader *)entry->value);
+    (void)rawBody;
+    return;
+}
+
+void printParam(void* data){
+    printf("%s\n", (char*)data);
+}
+
+void dumpHttpRequest(struct HttpRequest* request){
+    printf("Method: ");
+    switch(request->method){
+        case GET:
+           printf("GET\n");
+        break;
+        case POST:
+           printf("POST\n");
+        break;
+        case DELETE:
+           printf("DELETE\n");
+        break;
+        case PUT:
+           printf("PUT\n");
+        break;
+        case PATCH:
+           printf("PATCH\n");
+        break;
+        case STATIC:
+           printf("STATIC\n");
+        break;
+        default:
+           printf("UNDEFINED\n");
+
+    }
+    printf("Version: %d.%d\n", request->version.major, request->version.minor);
+    printf("base URI: %s\n", request->baseUri);
+    hashtableDump(request->params, printParam);
+    hashtableDump(request->headers, printHeader);
+    printf("\n\n%s\n", (char*)request->body);
+}
+
 bool requestParser(String requestString, struct HttpRequest* request) {
     String requestLine = chop_line(&requestString);
     //Match request method string to the enun HttpMethod
     request->method = selectHttpMethod(chop_word(&requestLine));
-    if(request->method == UNDEFINED) 
+    if(request->method == UNDEFINED)
         return false;
     String uri = chop_word(&requestLine);
     uriParser(uri, request);
     chop_token(&requestLine, '/');
     versionParser(requestLine, request);
-    //headersParser(&requestString, request);
+    headersParser(&requestString, request);
     //bodyParser();
     request->body = NULL;
+    //dumpHttpRequest(request);
     return true;
 }
 
@@ -151,3 +222,5 @@ void deleteHttpRequest(struct HttpRequest *request){
     free(request);
     return;
 }
+
+

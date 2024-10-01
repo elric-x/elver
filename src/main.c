@@ -5,7 +5,7 @@
 /************************************************************************8 */
 void homeMiddleware(struct HttpRequest *request, struct HttpResponse *response) {
     (void)request;
-    char *file_path = "/home/dragonix/Dragonix/Sandbox/c/socket/www/index.html";
+    char *file_path = "/home/dragonix/Dragonix/Workspace/socket/www/index.html";
     response->body = readFile(file_path);
     if (response->body)
         response->status_code = 200;
@@ -16,7 +16,7 @@ void homeMiddleware(struct HttpRequest *request, struct HttpResponse *response) 
 
 void aboutMiddleware(struct HttpRequest *request, struct HttpResponse *response) {
     (void)request;
-    char *file_path = "/home/dragonix/Dragonix/Sandbox/c/socket/www/about.html";
+    char *file_path = "/home/dragonix/Dragonix/Workspace/socket/www/about.html";
     response->body = readFile(file_path);
     if (response->body)
         response->status_code = 200;
@@ -28,7 +28,7 @@ void aboutMiddleware(struct HttpRequest *request, struct HttpResponse *response)
 void contactMiddleware(struct HttpRequest *request, struct HttpResponse *response) {
     (void)request;
     printf("Contact route\n");
-    char *file_path = "/home/dragonix/Dragonix/Sandbox/c/socket/www/contact.html";
+    char *file_path = "/home/dragonix/Dragonix/Workspace/socket/www/contact.html";
     response->body = readFile(file_path);
     if (response->body)
         response->status_code = 200;
@@ -41,12 +41,12 @@ void contactMiddleware(struct HttpRequest *request, struct HttpResponse *respons
 int main(int argc, char **argv) {
     int serverPort = 0;
     if(argc < 2){
-        serverPort = 8000;
+        serverPort = 5000;
     }else{
         serverPort = (int)atoi(argv[1]);
     }
     // Server creation
-    struct HttpServer httpServer = createHttpServer(serverPort, "192.168.1.1");
+    struct HttpServer httpServer = createHttpServer(NULL, serverPort);
 
     // Route registration
     httpServer.router
